@@ -1,1 +1,1 @@
-# Project is pending due to changes on the game mechanics on MCGG Season 2
+# Project is pending due to changes on the game mechanics of MCGG Season 2
