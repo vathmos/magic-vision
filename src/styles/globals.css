@@ -1,3 +1,74 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --bg: #d9e7ff;
+  --bg-accent: #c6d9fb;
+  --surface: #eaf1ff;
+  --surface-strong: #dbe7ff;
+  --ink: #112248;
+  --muted: #4a5f85;
+  --accent: #2a62f3;
+  --accent-2: #2aa7d6;
+  --danger: #e0534f;
+  --success: #2fa872;
+  --shadow: rgba(15, 15, 15, 0.08);
+}
+
+.dark {
+  --bg: #0b1526;
+  --bg-accent: #101d33;
+  --surface: #121f36;
+  --surface-strong: #1a2a45;
+  --ink: #eaf1ff;
+  --muted: #8ea1be;
+  --accent: #4f8cff;
+  --accent-2: #33c1e0;
+  --danger: #f06f66;
+  --success: #38c182;
+  --shadow: rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#__next {
+  min-height: 100%;
+}
+
+html,
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(232, 93, 63, 0.12), transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(15, 157, 143, 0.14), transparent 50%),
+    linear-gradient(120deg, var(--bg), var(--bg-accent));
+  background-attachment: fixed;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  touch-action: none;
+  will-change: transform;
+}
