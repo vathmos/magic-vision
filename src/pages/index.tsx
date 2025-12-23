@@ -173,32 +173,35 @@ export default function Home() {
     [stage],
   );
 
-  const swapOrderSlots = useCallback((fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex) return;
-    setOrder((prev) => {
-      const next = [...prev];
-      const temp = next[toIndex];
-      next[toIndex] = next[fromIndex];
-      next[fromIndex] = temp;
-      return next;
-    });
-  }, []);
+  const removePlayerFromSlot = useCallback(
+    (slotIndex: number) => {
+      if (stage !== "discovery") return;
+      setOrder((prev) => {
+        if (!prev[slotIndex]) {
+          return prev;
+        }
+        const next = [...prev];
+        next[slotIndex] = null;
+        return next;
+      });
+      setSelectedEnemyId(null);
+    },
+    [stage],
+  );
 
   const handleDragEnd = (event: DragEndEvent) => {
     if (stage === "discovery" && typeof event.over?.id === "string") {
+      const data = event.active.data.current as DragData | undefined;
+      if (event.over.id === "pool-drop" && data?.type === "slot") {
+        removePlayerFromSlot(data.index);
+        setActiveDragPlayerId(null);
+        return;
+      }
       const match = event.over.id.match(/^round-(\d+)$/);
-        if (match) {
-          const roundIndex = Number(match[1]);
-          const data = event.active.data.current as DragData | undefined;
-          if (data?.type === "pool") {
-            if (!order[roundIndex]) {
-              placePlayerInSlot(data.playerId, roundIndex);
-            }
-          }
-          if (data?.type === "slot") {
-            swapOrderSlots(data.index, roundIndex);
-          }
-        }
+      if (match && data?.playerId) {
+        const roundIndex = Number(match[1]);
+        placePlayerInSlot(data.playerId, roundIndex);
+      }
     }
     setActiveDragPlayerId(null);
   };

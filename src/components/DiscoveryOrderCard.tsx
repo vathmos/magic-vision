@@ -6,10 +6,11 @@ import {
   type DragEndEvent,
   type DragStartEvent,
   type SensorDescriptor,
+  type PointerSensorOptions,
 } from "@dnd-kit/core";
 import { Button, Card, CardBody } from "@heroui/react";
-import { IconChevronRight, IconUser, IconX } from "@tabler/icons-react";
-import type { ReactNode } from "react";
+import { IconChevronRight, IconUser } from "@tabler/icons-react";
+import type { ReactNode, Dispatch, SetStateAction } from "react";
 import type { DragData } from "@/types/drag";
 
 type Enemy = {
@@ -56,11 +57,11 @@ function DraggableEnemy({
       onPress={onClick}
       {...listeners}
       {...attributes}
-      className={`flex w-full items-center justify-between border px-5 py-4.5 text-lg transition-none ${
+      className={`flex w-full items-center justify-between border px-5 py-6 text-base transition-none ${
         selected ? "border-[var(--accent)] bg-[var(--surface-strong)]" : "border-white/10 bg-[var(--surface)]"
       } ${eliminated ? "opacity-50 line-through" : ""} ${isDragging ? "shadow-xl opacity-0" : "shadow-sm"}`}
     >
-      <span className="font-medium">{label}</span>
+      <span className="text-sm font-medium">{label}</span>
       <span className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{statusLabel}</span>
     </Button>
   );
@@ -82,7 +83,7 @@ function DroppableSlot({ children, disabled, id, isActive }: DroppableSlotProps)
   return (
     <div
       ref={setNodeRef}
-      className={`flex h-full min-h-[84px] items-center justify-center border p-5 text-center transition md:min-h-[92px] md:p-6 ${
+      className={`flex h-full min-h-[84px] items-center justify-center rounded-2xl border p-5 text-center transition md:min-h-[92px] md:p-6 ${
         isOver
           ? "border-[var(--accent)] bg-[var(--surface-strong)]"
           : isActive
@@ -117,10 +118,31 @@ function SlotDraggable({ playerId, name, index }: SlotDraggableProps) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`flex items-center gap-2 text-lg font-medium ${isDragging ? "opacity-0" : ""}`}
+      className={`flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-[var(--surface)] px-4 py-3 text-base font-medium ${
+        isDragging ? "opacity-0" : ""
+      }`}
     >
       <IconUser className="h-5 w-5 text-[var(--muted)]" />
       {name}
+    </div>
+  );
+}
+
+type PoolDropZoneProps = {
+  children: ReactNode;
+};
+
+function PoolDropZone({ children }: PoolDropZoneProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: "pool-drop",
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`grid min-h-[92px] gap-3 transition ${isOver ? "ring-1 ring-[var(--accent)]" : ""}`}
+    >
+      {children}
     </div>
   );
 }
@@ -129,11 +151,11 @@ type DiscoveryOrderCardProps = {
   order: (string | null)[];
   enemyMap: Map<string, Enemy>;
   selectedEnemyId: string | null;
-  setSelectedEnemyId: (value: string | null) => void;
+  setSelectedEnemyId: Dispatch<SetStateAction<string | null>>;
   availableEnemies: Enemy[];
   eliminatedSet: Set<string>;
   activeDragPlayerId: string | null;
-  sensors: SensorDescriptor<any>[];
+  sensors: SensorDescriptor<PointerSensorOptions>[];
   onDragStart: (event: DragStartEvent) => void;
   onDragEnd: (event: DragEndEvent) => void;
   onDragCancel: () => void;
@@ -171,24 +193,12 @@ export function DiscoveryOrderCard({
               <h2 className="text-2xl">{t("discoveryOrderTitle")}</h2>
               <p className="mt-2 text-sm text-[var(--muted)]">{t("discoveryOrderDescription")}</p>
             </div>
-            <Button
-              type="button"
-              onPress={startExecution}
-              isDisabled={!isDiscoveryComplete}
-              className="bg-[var(--accent)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white transition hover:brightness-110 disabled:opacity-40"
-            >
-              <span className="flex items-center justify-center gap-2">
-                <IconChevronRight className="h-6 w-6" />
-                {t("continue")}
-              </span>
-            </Button>
           </div>
           <div className="mt-6 grid flex-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
             <div className="flex flex-col gap-4">
               {order.map((slot, index) => {
                 const enemy = slot ? enemyMap.get(slot) : null;
-                const isAssigned = Boolean(slot);
-                const canPlace = Boolean(selectedEnemyId) && !isAssigned;
+                const canPlace = Boolean(selectedEnemyId) && selectedEnemyId !== slot;
                 return (
                   <div
                     key={`round-slot-${index}`}
@@ -208,11 +218,7 @@ export function DiscoveryOrderCard({
                           ) : (
                             <>
                               <IconUser className="h-4 w-4 text-[var(--muted)]" />
-                              <span>
-                                {selectedEnemyId
-                                  ? t("selected", enemyMap.get(selectedEnemyId)?.name ?? "")
-                                  : t("dropOrPlace")}
-                              </span>
+                              <span>{t("dropOrPlace")}</span>
                             </>
                           )}
                         </div>
@@ -222,7 +228,7 @@ export function DiscoveryOrderCard({
                 );
               })}
             </div>
-            <div className="flex flex-col gap-4">
+            <div className="flex h-full flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg">{t("unusedPlayers")}</h3>
@@ -230,18 +236,8 @@ export function DiscoveryOrderCard({
                     {t("remaining", String(availableEnemies.length))}
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  onPress={() => setSelectedEnemyId(null)}
-                  className="border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[var(--muted)]"
-                >
-                  <span className="flex items-center gap-2">
-                    <IconX className="h-3.5 w-3.5" />
-                    {t("clear")}
-                  </span>
-                </Button>
               </div>
-              <div className="grid gap-3">
+              <PoolDropZone>
                 {availableEnemies.map((enemy) => (
                   <DraggableEnemy
                     key={enemy.id}
@@ -254,6 +250,19 @@ export function DiscoveryOrderCard({
                     onClick={() => setSelectedEnemyId((current) => (current === enemy.id ? null : enemy.id))}
                   />
                 ))}
+              </PoolDropZone>
+              <div className="mt-auto flex justify-end pt-2">
+                <Button
+                  type="button"
+                  onPress={startExecution}
+                  isDisabled={!isDiscoveryComplete}
+                  className="bg-[var(--accent)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white transition hover:brightness-110 disabled:opacity-40"
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <IconChevronRight className="h-6 w-6" />
+                    {t("continue")}
+                  </span>
+                </Button>
               </div>
             </div>
           </div>
@@ -264,7 +273,6 @@ export function DiscoveryOrderCard({
         {activeDragPlayerId ? (
           <div className="flex w-full max-w-[320px] items-center justify-between rounded-2xl border border-[var(--accent)] bg-[var(--surface-strong)] px-4 py-3 text-left text-sm shadow-xl">
             <span className="font-medium">{enemyMap.get(activeDragPlayerId)?.name}</span>
-            <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">{t("dragging")}</span>
           </div>
         ) : null}
       </DragOverlay>
