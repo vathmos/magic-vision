@@ -65,7 +65,6 @@ export function ExecutionStageCard({
                   {t("stageFate")}
                 </div>
                 <div className="text-2xl font-semibold">{t("fateResolved")}</div>
-                <p className="text-sm text-[var(--muted)]">{t("fateDescription")}</p>
               </div>
             )}
             {isCreepStage && (
@@ -75,7 +74,6 @@ export function ExecutionStageCard({
                   {t("creepStageLabel")}
                 </div>
                 <div className="text-2xl font-semibold">{t("creepTitle")}</div>
-                <p className="text-sm text-[var(--muted)]">{t("creepDescription")}</p>
               </div>
             )}
             {isPlayerStage && isMirrorStage && (
