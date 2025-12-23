@@ -1,5 +1,5 @@
 import { Button, Card, CardBody, CardHeader, Chip } from "@heroui/react";
-import { IconUser, IconUserCancel, IconPlayerPlay, IconSkull, IconCoffin } from "@tabler/icons-react";
+import { IconUser, IconSkull, IconCoffin } from "@tabler/icons-react";
 
 type Enemy = {
   id: string;
