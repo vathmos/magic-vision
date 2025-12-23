@@ -12,7 +12,7 @@ import type { Stage } from "@/types/session";
 import { createTranslator, type Language } from "@/utils/i18n";
 import { getDiscoveryLabel, toRoman } from "@/utils/stages";
 import { Button, Card, CardBody, Input, Select, SelectItem } from "@heroui/react";
-import { IconArrowBackUp, IconPlayerPlay, IconRefresh } from "@tabler/icons-react";
+import { IconArrowBackUp, IconBrandGithub, IconPlayerPlay, IconRefresh } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useTheme } from "next-themes";
@@ -164,6 +164,17 @@ export default function Home() {
             height={88}
           />
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              as="a"
+              href="https://github.com/vathmos/magic-vision"
+              target="_blank"
+              rel="noreferrer"
+              isIconOnly
+              aria-label="GitHub"
+            >
+              <IconBrandGithub className="h-5 w-5" />
+            </Button>
             <Select
               variant="bordered"
               aria-label={t("switchLanguage")}
