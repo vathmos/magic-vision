@@ -1,5 +1,5 @@
 import { Button, Card, CardBody, CardHeader, Chip } from "@heroui/react";
-import { IconUser, IconUserCancel, IconPlayerPlay } from "@tabler/icons-react";
+import { IconUser, IconUserCancel, IconPlayerPlay, IconSkull, IconCoffin } from "@tabler/icons-react";
 
 type Enemy = {
   id: string;
@@ -27,7 +27,6 @@ export function PlayerRosterCard({
     <Card className="border border-white/10 bg-[var(--surface)] shadow-[0_18px_45px_var(--shadow)]">
       <CardHeader className="flex items-center justify-between px-6 pt-6">
         <div className="flex items-center gap-2">
-          <IconUser className="h-5 w-5 text-[var(--muted)]" />
           <h2 className="text-xl">{t("playerRoster")}</h2>
         </div>
         <Chip className="border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
@@ -68,9 +67,9 @@ export function PlayerRosterCard({
                   }
                 >
                   {eliminatedSet.has(enemy.id) ? (
-                    <IconPlayerPlay className="h-6 w-6" />
+                    <IconCoffin className="h-6 w-6" />
                   ) : (
-                    <IconUserCancel className="h-6 w-6" />
+                    <IconSkull className="h-6 w-6" />
                   )}
                 </Button>
               </div>
