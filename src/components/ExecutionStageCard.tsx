@@ -57,6 +57,7 @@ export function ExecutionStageCard({
             </div>
             <div className="rounded-full border border-white/10 px-4 py-2 text-2xl font-semibold">{timeLeft}s</div>
           </div>
+          <div className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">{t("mirrorHint")}</div>
           <div className="rounded-[28px] border border-white/10 bg-[var(--surface-strong)] p-6">
             {isFateBox && (
               <div className="space-y-3">
