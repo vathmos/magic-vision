@@ -3,21 +3,21 @@ import { ExecutionStageCard } from "@/components/ExecutionStageCard";
 import { MatchOrderPanel } from "@/components/MatchOrderPanel";
 import { PlayerRosterCard } from "@/components/PlayerRosterCard";
 import { ThemeSwitcher } from "@/components/ThemeSwitch";
-import type { DragData } from "@/types/drag";
+import { useDiscoveryOrder } from "@/hooks/useDiscoveryOrder";
+import { useExecutionStage } from "@/hooks/useExecutionStage";
+import { useRoster } from "@/hooks/useRoster";
+import type { Stage } from "@/types/session";
 import { createTranslator, type Language } from "@/utils/i18n";
 import { getDiscoveryLabel, toRoman } from "@/utils/stages";
-import { DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { Button, Card, CardBody, Input, Select, SelectItem } from "@heroui/react";
 import { IconArrowBackUp, IconPlayerPlay, IconRefresh } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const ROUND_COUNT = 7;
 const ROUND_DURATION = 30;
-
-type Stage = "setup" | "discovery" | "execution";
 
 type Enemy = {
   id: string;
@@ -26,38 +26,12 @@ type Enemy = {
 
 const initialEnemyNames = Array.from({ length: ROUND_COUNT }, (_, index) => `P${index + 2}`);
 
-function getNextOpponentIndex(
-  startIndex: number,
-  order: string[],
-  eliminated: Set<string>,
-) {
-  for (let step = 1; step <= order.length; step += 1) {
-    const idx = (startIndex + step) % order.length;
-    const candidate = order[idx];
-    if (!eliminated.has(candidate)) {
-      return idx;
-    }
-  }
-  return null;
-}
-
 export default function Home() {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
   const [stage, setStage] = useState<Stage>("setup");
   const [enemyNames, setEnemyNames] = useState<string[]>(initialEnemyNames);
-  const [order, setOrder] = useState<(string | null)[]>(Array(ROUND_COUNT).fill(null));
-  const [selectedEnemyId, setSelectedEnemyId] = useState<string | null>(null);
-  const [activeDragPlayerId, setActiveDragPlayerId] = useState<string | null>(null);
-  const [pointerIndex, setPointerIndex] = useState(-1);
-  const [roundNumber, setRoundNumber] = useState(1);
-  const [stageNumber, setStageNumber] = useState(1);
-  const [isFateBox, setIsFateBox] = useState(false);
-  const [eliminatedIds, setEliminatedIds] = useState<string[]>([]);
-  const [timeLeft, setTimeLeft] = useState(ROUND_DURATION);
-  const [paused, setPaused] = useState(false);
-  const [isMirrorStage, setIsMirrorStage] = useState(false);
 
   const enemies = useMemo<Enemy[]>(
     () =>
@@ -69,37 +43,46 @@ export default function Home() {
   );
 
   const enemyMap = useMemo(() => new Map(enemies.map((enemy) => [enemy.id, enemy])), [enemies]);
-  const eliminatedSet = useMemo(() => new Set(eliminatedIds), [eliminatedIds]);
-  const assignedIds = useMemo(
-    () => new Set(order.filter((entry): entry is string => Boolean(entry))),
-    [order],
-  );
+  const {
+    eliminatedSet,
+    activeEnemyCount,
+    activePlayerCount,
+    eliminate,
+    revive,
+    resetRoster,
+  } = useRoster({ enemies });
+  const {
+    order,
+    selectedEnemyId,
+    setSelectedEnemyId,
+    activeDragPlayerId,
+    sensors,
+    availableEnemies,
+    isDiscoveryComplete,
+    placePlayerInSlot,
+    handleDragStart,
+    handleDragEnd,
+    handleDragCancel,
+    resetDiscovery,
+    clearSelection,
+  } = useDiscoveryOrder({ stage, enemies, roundCount: ROUND_COUNT });
+  const {
+    roundNumber,
+    stageNumber,
+    isFateBox,
+    isMirrorStage,
+    timeLeft,
+    paused,
+    isPlayerStage,
+    isCreepStage,
+    nextOpponentIndex,
+    startExecution,
+    resetExecution,
+    advanceStage,
+    togglePause,
+  } = useExecutionStage({ stage, setStage, order, eliminatedSet, roundDuration: ROUND_DURATION });
 
-  const isDiscoveryComplete = order.every((slot) => slot !== null);
-  const activeEnemyCount = enemies.filter((enemy) => !eliminatedSet.has(enemy.id)).length;
-  const activePlayerCount = activeEnemyCount + 1;
-  const stagesThisRound = roundNumber === 1 ? 4 : 6;
-  const stageType =
-    stage === "execution" && !isFateBox
-      ? roundNumber === 1
-        ? stageNumber === 1
-          ? "creep"
-          : "player"
-        : stageNumber === 3
-          ? "creep"
-          : "player"
-      : isFateBox
-        ? "fate"
-        : "player";
-  const isPlayerStage = stage === "execution" && stageType === "player" && !isFateBox;
-  const isCreepStage = stage === "execution" && stageType === "creep" && !isFateBox;
   const canMirror = isPlayerStage && activePlayerCount % 2 === 1;
-
-  const availableEnemies = enemies.filter((enemy) => !assignedIds.has(enemy.id));
-  const nextOpponentIndex = useMemo(
-    () => (isPlayerStage ? getNextOpponentIndex(pointerIndex, order as string[], eliminatedSet) : null),
-    [isPlayerStage, pointerIndex, order, eliminatedSet],
-  );
   const nextOpponentId = nextOpponentIndex !== null ? order[nextOpponentIndex] : null;
   const nextOpponent = nextOpponentId ? enemyMap.get(nextOpponentId) : null;
   const t = useMemo(() => createTranslator(language), [language]);
@@ -114,172 +97,26 @@ export default function Home() {
 
   const handleStartDiscovery = () => {
     setStage("discovery");
-    setOrder(Array(ROUND_COUNT).fill(null));
-    setSelectedEnemyId(null);
-    setPointerIndex(-1);
-    setRoundNumber(1);
-    setStageNumber(1);
-    setIsFateBox(false);
-    setEliminatedIds([]);
-    setTimeLeft(ROUND_DURATION);
-    setPaused(false);
-    setIsMirrorStage(false);
+    resetDiscovery();
+    resetExecution();
+    resetRoster();
   };
 
   const handleBackToSetup = () => {
     setStage("setup");
-    setOrder(Array(ROUND_COUNT).fill(null));
-    setSelectedEnemyId(null);
-    setPointerIndex(-1);
-    setRoundNumber(1);
-    setStageNumber(1);
-    setIsFateBox(false);
-    setEliminatedIds([]);
-    setTimeLeft(ROUND_DURATION);
-    setPaused(false);
-    setIsMirrorStage(false);
+    resetDiscovery();
+    resetExecution();
+    resetRoster();
   };
 
-  const startExecution = useCallback(() => {
-    setStage("execution");
-    setRoundNumber(2);
-    setStageNumber(6);
-    setIsFateBox(false);
-    setPointerIndex(-1);
-    setSelectedEnemyId(null);
-    setTimeLeft(ROUND_DURATION);
-    setPaused(false);
-    setIsMirrorStage(false);
-  }, []);
-
-  const placePlayerInSlot = useCallback(
-    (playerId: string, targetIndex: number) => {
-      if (stage !== "discovery") return;
-      setOrder((prev) => {
-        const next = [...prev];
-        const existingIndex = next.findIndex((id) => id === playerId);
-        if (existingIndex === targetIndex) {
-          return prev;
-        }
-        const targetPlayer = next[targetIndex];
-        if (existingIndex !== -1) {
-          next[existingIndex] = targetPlayer ?? null;
-        }
-        next[targetIndex] = playerId;
-        return next;
-      });
-      setSelectedEnemyId(null);
-    },
-    [stage],
-  );
-
-  const removePlayerFromSlot = useCallback(
-    (slotIndex: number) => {
-      if (stage !== "discovery") return;
-      setOrder((prev) => {
-        if (!prev[slotIndex]) {
-          return prev;
-        }
-        const next = [...prev];
-        next[slotIndex] = null;
-        return next;
-      });
-      setSelectedEnemyId(null);
-    },
-    [stage],
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    if (stage === "discovery" && typeof event.over?.id === "string") {
-      const data = event.active.data.current as DragData | undefined;
-      if (event.over.id === "pool-drop" && data?.type === "slot") {
-        removePlayerFromSlot(data.index);
-        setActiveDragPlayerId(null);
-        return;
-      }
-      const match = event.over.id.match(/^round-(\d+)$/);
-      if (match && data?.playerId) {
-        const roundIndex = Number(match[1]);
-        placePlayerInSlot(data.playerId, roundIndex);
-      }
-    }
-    setActiveDragPlayerId(null);
+  const handleStartExecution = () => {
+    clearSelection();
+    startExecution();
   };
-
-  const handleDragStart = (event: DragStartEvent) => {
-    if (stage !== "discovery") return;
-    const data = event.active.data?.current as DragData | undefined;
-    if (data?.playerId) {
-      setActiveDragPlayerId(data.playerId);
-    }
-  };
-
-  const handleDragCancel = () => {
-    setActiveDragPlayerId(null);
-  };
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
-    }),
-  );
-
-  const advanceStage = useCallback(
-    (forceMirror = false) => {
-      if (stage !== "execution") return;
-      if (isFateBox) {
-        setIsFateBox(false);
-        setIsMirrorStage(false);
-        setRoundNumber((round) => round + 1);
-        setStageNumber(1);
-        setTimeLeft(ROUND_DURATION);
-        return;
-      }
-
-      if (isPlayerStage) {
-        const nextIndex = getNextOpponentIndex(pointerIndex, order as string[], eliminatedSet);
-        const shouldMirror = forceMirror || nextIndex === null;
-        if (!shouldMirror && nextIndex !== null) {
-          setPointerIndex(nextIndex);
-        }
-        setIsMirrorStage(shouldMirror);
-      } else {
-        setIsMirrorStage(false);
-      }
-
-      if (stageNumber >= stagesThisRound) {
-        setIsFateBox(true);
-      } else {
-        setStageNumber((current) => current + 1);
-      }
-      setTimeLeft(ROUND_DURATION);
-    },
-    [stage, isFateBox, isPlayerStage, pointerIndex, order, eliminatedSet, stageNumber, stagesThisRound],
-  );
-
-  useEffect(() => {
-    if (stage !== "execution" || paused) return;
-    if (timeLeft <= 0) {
-      advanceStage();
-      return;
-    }
-    const timer = setTimeout(() => setTimeLeft((time) => time - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [stage, paused, timeLeft, advanceStage]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const handleEliminate = (enemyId: string) => {
-    if (eliminatedSet.has(enemyId)) return;
-    setEliminatedIds((prev) => [...prev, enemyId]);
-  };
-
-  const handleRevive = (enemyId: string) => {
-    if (!eliminatedSet.has(enemyId)) return;
-    setEliminatedIds((prev) => prev.filter((id) => id !== enemyId));
-  };
 
   const headerVariants = {
     hidden: { opacity: 0, y: -12 },
@@ -457,7 +294,7 @@ export default function Home() {
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
             placePlayerInSlot={placePlayerInSlot}
-            startExecution={startExecution}
+            startExecution={handleStartExecution}
             isDiscoveryComplete={isDiscoveryComplete}
             getDiscoveryLabel={getDiscoveryLabel}
             t={t}
@@ -477,7 +314,7 @@ export default function Home() {
             canMirror={canMirror}
             paused={paused}
             onAdvanceStage={advanceStage}
-            onTogglePause={() => setPaused((current) => !current)}
+            onTogglePause={togglePause}
             t={t}
           />
         )}
@@ -487,8 +324,8 @@ export default function Home() {
             enemies={enemies}
             eliminatedSet={eliminatedSet}
             activeEnemyCount={activeEnemyCount}
-            onEliminate={handleEliminate}
-            onRevive={handleRevive}
+            onEliminate={eliminate}
+            onRevive={revive}
             t={t}
           />
         )}
