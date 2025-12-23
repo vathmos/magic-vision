@@ -3,6 +3,7 @@ import {
   IconArrowsExchange,
   IconBat,
   IconGift,
+  IconStopwatch,
   IconPlayerPause,
   IconPlayerPlay,
   IconPlayerSkipForward,
@@ -55,7 +56,10 @@ export function ExecutionStageCard({
               <div className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">{stageLabel}</div>
               <h2 className="text-3xl">{stageTitle}</h2>
             </div>
-            <div className="rounded-full border border-white/10 px-4 py-2 text-2xl font-semibold">{timeLeft}s</div>
+            <div className="flex items-center gap-2 text-2xl font-semibold">
+              <IconStopwatch className="h-8 w-8 text-[var(--muted)]" />
+              <div className="rounded-full border border-white/10 px-4 py-2">{timeLeft}s</div>
+            </div>
           </div>
           <div className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">{t("mirrorHint")}</div>
           <div className="rounded-[28px] border border-white/10 bg-[var(--surface-strong)] p-6">
