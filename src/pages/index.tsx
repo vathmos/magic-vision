@@ -1,4 +1,6 @@
 import { DiscoveryOrderCard } from "@/components/DiscoveryOrderCard";
+import { EndgameCard } from "@/components/EndgameCard";
+import { EndgameResultCard } from "@/components/EndgameResultCard";
 import { ExecutionStageCard } from "@/components/ExecutionStageCard";
 import { MatchOrderPanel } from "@/components/MatchOrderPanel";
 import { PlayerRosterCard } from "@/components/PlayerRosterCard";
@@ -32,6 +34,7 @@ export default function Home() {
   const [language, setLanguage] = useState<Language>("en");
   const [stage, setStage] = useState<Stage>("setup");
   const [enemyNames, setEnemyNames] = useState<string[]>(initialEnemyNames);
+  const [endgameResult, setEndgameResult] = useState<"win" | "lose" | null>(null);
 
   const enemies = useMemo<Enemy[]>(
     () =>
@@ -100,6 +103,7 @@ export default function Home() {
     resetDiscovery();
     resetExecution();
     resetRoster();
+    setEndgameResult(null);
   };
 
   const handleBackToSetup = () => {
@@ -107,11 +111,21 @@ export default function Home() {
     resetDiscovery();
     resetExecution();
     resetRoster();
+    setEndgameResult(null);
   };
 
   const handleStartExecution = () => {
     clearSelection();
     startExecution();
+    setEndgameResult(null);
+  };
+
+  const handleRestartSession = () => {
+    setStage("discovery");
+    resetDiscovery();
+    resetExecution();
+    resetRoster();
+    setEndgameResult(null);
   };
 
   useEffect(() => {
@@ -129,7 +143,7 @@ export default function Home() {
   };
 
   const gridColumns =
-    stage === "setup" || stage === "discovery"
+    stage === "setup" || stage === "discovery" || (stage === "execution" && activeEnemyCount === 1)
       ? "lg:grid-cols-1"
       : "lg:grid-cols-[1.05fr_1.4fr_1fr]";
 
@@ -211,7 +225,7 @@ export default function Home() {
         animate="show"
         className={`mt-10 grid gap-6 ${gridColumns}`}
       >
-        {stage === "execution" && (
+        {stage === "execution" && activeEnemyCount !== 1 && (
           <MatchOrderPanel
             order={order}
             enemyMap={enemyMap}
@@ -301,7 +315,28 @@ export default function Home() {
           />
         )}
 
-        {stage === "execution" && (
+        {stage === "execution" && activeEnemyCount === 1 && endgameResult ? (
+          <EndgameResultCard
+            result={endgameResult}
+            opponentName={nextOpponent?.name ?? null}
+            onRestart={handleRestartSession}
+            onBackToSetup={handleBackToSetup}
+            t={t}
+          />
+        ) : stage === "execution" && activeEnemyCount === 1 ? (
+          <EndgameCard
+            stageLabel={stageLabel}
+            stageTitle={stageTitle}
+            timeLeft={timeLeft}
+            paused={paused}
+            opponentName={nextOpponent?.name ?? null}
+            onWin={() => setEndgameResult("win")}
+            onLose={() => setEndgameResult("lose")}
+            onAdvanceStage={advanceStage}
+            onTogglePause={togglePause}
+            t={t}
+          />
+        ) : stage === "execution" ? (
           <ExecutionStageCard
             stageLabel={stageLabel}
             stageTitle={stageTitle}
@@ -317,9 +352,9 @@ export default function Home() {
             onTogglePause={togglePause}
             t={t}
           />
-        )}
+        ) : null}
 
-        {stage === "execution" && (
+        {stage === "execution" && activeEnemyCount !== 1 && (
           <PlayerRosterCard
             enemies={enemies}
             eliminatedSet={eliminatedSet}
