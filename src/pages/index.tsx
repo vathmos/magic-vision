@@ -20,6 +20,8 @@ import { useEffect, useMemo, useState } from "react";
 
 const ROUND_COUNT = 7;
 const ROUND_DURATION = 30;
+const STORAGE_KEY = "magic-vision-session";
+const STORAGE_VERSION = 1;
 
 type Enemy = {
   id: string;
@@ -28,6 +30,39 @@ type Enemy = {
 
 const initialEnemyNames = Array.from({ length: ROUND_COUNT }, (_, index) => `P${index + 2}`);
 
+type SavedSession = {
+  version: number;
+  stage: Stage;
+  enemyNames: string[];
+  order: (string | null)[];
+  eliminatedIds: string[];
+  execution: {
+    pointerIndex: number;
+    roundNumber: number;
+    stageNumber: number;
+    isFateBox: boolean;
+    timeLeft: number;
+    paused: boolean;
+    isMirrorStage: boolean;
+  };
+  endgameResult: "win" | "lose" | null;
+};
+
+function parseSavedSession(raw: string): SavedSession | null {
+  try {
+    const data = JSON.parse(raw) as SavedSession;
+    if (!data || data.version !== STORAGE_VERSION) return null;
+    if (data.stage !== "setup" && data.stage !== "discovery" && data.stage !== "execution") return null;
+    if (!Array.isArray(data.enemyNames) || !Array.isArray(data.order) || !Array.isArray(data.eliminatedIds)) {
+      return null;
+    }
+    if (!data.execution || typeof data.execution !== "object") return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 export default function Home() {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -35,6 +70,7 @@ export default function Home() {
   const [stage, setStage] = useState<Stage>("setup");
   const [enemyNames, setEnemyNames] = useState<string[]>(initialEnemyNames);
   const [endgameResult, setEndgameResult] = useState<"win" | "lose" | null>(null);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   const enemies = useMemo<Enemy[]>(
     () =>
@@ -47,12 +83,14 @@ export default function Home() {
 
   const enemyMap = useMemo(() => new Map(enemies.map((enemy) => [enemy.id, enemy])), [enemies]);
   const {
+    eliminatedIds,
     eliminatedSet,
     activeEnemyCount,
     activePlayerCount,
     eliminate,
     revive,
     resetRoster,
+    hydrateRoster,
   } = useRoster({ enemies });
   const {
     order,
@@ -68,8 +106,10 @@ export default function Home() {
     handleDragCancel,
     resetDiscovery,
     clearSelection,
+    hydrateDiscovery,
   } = useDiscoveryOrder({ stage, enemies, roundCount: ROUND_COUNT });
   const {
+    pointerIndex,
     roundNumber,
     stageNumber,
     isFateBox,
@@ -83,6 +123,7 @@ export default function Home() {
     resetExecution,
     advanceStage,
     togglePause,
+    hydrateExecution,
   } = useExecutionStage({ stage, setStage, order, eliminatedSet, roundDuration: ROUND_DURATION });
 
   const canMirror = isPlayerStage && activePlayerCount % 2 === 1;
@@ -131,6 +172,76 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const saved = raw ? parseSavedSession(raw) : null;
+    if (saved) {
+      const normalizedNames = Array.from({ length: ROUND_COUNT }, (_, index) =>
+        typeof saved.enemyNames[index] === "string" ? saved.enemyNames[index] : initialEnemyNames[index],
+      );
+      const normalizedOrder = Array.from({ length: ROUND_COUNT }, (_, index) => {
+        const value = saved.order[index];
+        return typeof value === "string" ? value : null;
+      });
+      const normalizedEliminated = saved.eliminatedIds.filter((id) => typeof id === "string");
+      const execution = saved.execution;
+      setStage(saved.stage);
+      setEnemyNames(normalizedNames);
+      hydrateDiscovery(normalizedOrder);
+      hydrateRoster(normalizedEliminated);
+      hydrateExecution({
+        pointerIndex: Number.isFinite(execution.pointerIndex) ? execution.pointerIndex : -1,
+        roundNumber: Number.isFinite(execution.roundNumber) ? execution.roundNumber : 1,
+        stageNumber: Number.isFinite(execution.stageNumber) ? execution.stageNumber : 1,
+        isFateBox: Boolean(execution.isFateBox),
+        timeLeft: Number.isFinite(execution.timeLeft) ? execution.timeLeft : ROUND_DURATION,
+        paused: Boolean(execution.paused),
+        isMirrorStage: Boolean(execution.isMirrorStage),
+      });
+      const storedEndgame =
+        saved.endgameResult === "win" || saved.endgameResult === "lose" ? saved.endgameResult : null;
+      setEndgameResult(saved.stage === "execution" ? storedEndgame : null);
+    }
+    setHasHydrated(true);
+  }, [hydrateDiscovery, hydrateExecution, hydrateRoster]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    const payload: SavedSession = {
+      version: STORAGE_VERSION,
+      stage,
+      enemyNames,
+      order,
+      eliminatedIds,
+      execution: {
+        pointerIndex,
+        roundNumber,
+        stageNumber,
+        isFateBox,
+        timeLeft,
+        paused,
+        isMirrorStage,
+      },
+      endgameResult,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }, [
+    hasHydrated,
+    stage,
+    enemyNames,
+    order,
+    eliminatedIds,
+    pointerIndex,
+    roundNumber,
+    stageNumber,
+    isFateBox,
+    timeLeft,
+    paused,
+    isMirrorStage,
+    endgameResult,
+  ]);
 
   const headerVariants = {
     hidden: { opacity: 0, y: -12 },

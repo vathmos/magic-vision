@@ -30,12 +30,18 @@ export function useRoster({ enemies }: UseRosterParams) {
     setEliminatedIds([]);
   }, []);
 
+  const hydrateRoster = useCallback((ids: string[]) => {
+    setEliminatedIds(ids);
+  }, []);
+
   return {
+    eliminatedIds,
     eliminatedSet,
     activeEnemyCount,
     activePlayerCount,
     eliminate,
     revive,
     resetRoster,
+    hydrateRoster,
   };
 }

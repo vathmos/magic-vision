@@ -128,6 +128,27 @@ export function useExecutionStage({
     setPaused((current) => !current);
   }, []);
 
+  const hydrateExecution = useCallback(
+    (state: {
+      pointerIndex: number;
+      roundNumber: number;
+      stageNumber: number;
+      isFateBox: boolean;
+      timeLeft: number;
+      paused: boolean;
+      isMirrorStage: boolean;
+    }) => {
+      setPointerIndex(state.pointerIndex);
+      setRoundNumber(state.roundNumber);
+      setStageNumber(state.stageNumber);
+      setIsFateBox(state.isFateBox);
+      setTimeLeft(state.timeLeft);
+      setPaused(state.paused);
+      setIsMirrorStage(state.isMirrorStage);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (stage !== "execution" || paused) return;
     if (timeLeft <= 0) {
@@ -153,5 +174,6 @@ export function useExecutionStage({
     resetExecution,
     advanceStage,
     togglePause,
+    hydrateExecution,
   };
 }

@@ -125,6 +125,15 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
     setSelectedEnemyId(null);
   }, []);
 
+  const hydrateDiscovery = useCallback(
+    (nextOrder: (string | null)[]) => {
+      setOrder(nextOrder);
+      setSelectedEnemyId(null);
+      setActiveDragPlayerId(null);
+    },
+    [],
+  );
+
   return {
     order,
     selectedEnemyId,
@@ -139,5 +148,6 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
     handleDragCancel,
     resetDiscovery,
     clearSelection,
+    hydrateDiscovery,
   };
 }
