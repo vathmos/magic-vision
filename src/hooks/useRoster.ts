@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useSessionStore } from "@/store/sessionStore";
 
 type Enemy = {
   id: string;
@@ -10,7 +11,11 @@ type UseRosterParams = {
 };
 
 export function useRoster({ enemies }: UseRosterParams) {
-  const [eliminatedIds, setEliminatedIds] = useState<string[]>([]);
+  const eliminatedIds = useSessionStore((state) => state.eliminatedIds);
+  const setEliminatedIds = useSessionStore((state) => state.setEliminatedIds);
+  const eliminate = useSessionStore((state) => state.eliminate);
+  const revive = useSessionStore((state) => state.revive);
+  const resetRoster = useSessionStore((state) => state.resetRoster);
   const eliminatedSet = useMemo(() => new Set(eliminatedIds), [eliminatedIds]);
   const activeEnemyCount = useMemo(
     () => enemies.filter((enemy) => !eliminatedSet.has(enemy.id)).length,
@@ -18,21 +23,12 @@ export function useRoster({ enemies }: UseRosterParams) {
   );
   const activePlayerCount = activeEnemyCount + 1;
 
-  const eliminate = useCallback((enemyId: string) => {
-    setEliminatedIds((prev) => (prev.includes(enemyId) ? prev : [...prev, enemyId]));
-  }, []);
-
-  const revive = useCallback((enemyId: string) => {
-    setEliminatedIds((prev) => prev.filter((id) => id !== enemyId));
-  }, []);
-
-  const resetRoster = useCallback(() => {
-    setEliminatedIds([]);
-  }, []);
-
-  const hydrateRoster = useCallback((ids: string[]) => {
-    setEliminatedIds(ids);
-  }, []);
+  const hydrateRoster = useCallback(
+    (ids: string[]) => {
+      setEliminatedIds(ids);
+    },
+    [setEliminatedIds],
+  );
 
   return {
     eliminatedIds,

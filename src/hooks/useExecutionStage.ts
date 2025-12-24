@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import type { Stage } from "@/types/session";
+import { useCallback, useEffect, useMemo } from "react";
+import { useSessionStore } from "@/store/sessionStore";
 
 function getNextOpponentIndex(startIndex: number, order: string[], eliminated: Set<string>) {
   for (let step = 1; step <= order.length; step += 1) {
@@ -13,27 +13,32 @@ function getNextOpponentIndex(startIndex: number, order: string[], eliminated: S
 }
 
 type UseExecutionStageParams = {
-  stage: Stage;
-  setStage: Dispatch<SetStateAction<Stage>>;
-  order: (string | null)[];
   eliminatedSet: Set<string>;
   roundDuration: number;
 };
 
 export function useExecutionStage({
-  stage,
-  setStage,
-  order,
   eliminatedSet,
   roundDuration,
 }: UseExecutionStageParams) {
-  const [pointerIndex, setPointerIndex] = useState(-1);
-  const [roundNumber, setRoundNumber] = useState(1);
-  const [stageNumber, setStageNumber] = useState(1);
-  const [isFateBox, setIsFateBox] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(roundDuration);
-  const [paused, setPaused] = useState(false);
-  const [isMirrorStage, setIsMirrorStage] = useState(false);
+  const stage = useSessionStore((state) => state.stage);
+  const order = useSessionStore((state) => state.order);
+  const pointerIndex = useSessionStore((state) => state.pointerIndex);
+  const roundNumber = useSessionStore((state) => state.roundNumber);
+  const stageNumber = useSessionStore((state) => state.stageNumber);
+  const isFateBox = useSessionStore((state) => state.isFateBox);
+  const timeLeft = useSessionStore((state) => state.timeLeft);
+  const paused = useSessionStore((state) => state.paused);
+  const isMirrorStage = useSessionStore((state) => state.isMirrorStage);
+  const setPointerIndex = useSessionStore((state) => state.setPointerIndex);
+  const setRoundNumber = useSessionStore((state) => state.setRoundNumber);
+  const setStageNumber = useSessionStore((state) => state.setStageNumber);
+  const setIsFateBox = useSessionStore((state) => state.setIsFateBox);
+  const setTimeLeft = useSessionStore((state) => state.setTimeLeft);
+  const setPaused = useSessionStore((state) => state.setPaused);
+  const setIsMirrorStage = useSessionStore((state) => state.setIsMirrorStage);
+  const startExecutionState = useSessionStore((state) => state.startExecution);
+  const resetExecutionState = useSessionStore((state) => state.resetExecution);
 
   const orderIds = useMemo(
     () => (order.every((entry) => entry !== null) ? (order as string[]) : []),
@@ -61,25 +66,12 @@ export function useExecutionStage({
   );
 
   const resetExecution = useCallback(() => {
-    setPointerIndex(-1);
-    setRoundNumber(1);
-    setStageNumber(1);
-    setIsFateBox(false);
-    setTimeLeft(roundDuration);
-    setPaused(false);
-    setIsMirrorStage(false);
-  }, [roundDuration]);
+    resetExecutionState(roundDuration);
+  }, [roundDuration, resetExecutionState]);
 
   const startExecution = useCallback(() => {
-    setStage("execution");
-    setRoundNumber(2);
-    setStageNumber(6);
-    setIsFateBox(false);
-    setPointerIndex(-1);
-    setTimeLeft(roundDuration);
-    setPaused(false);
-    setIsMirrorStage(false);
-  }, [roundDuration, setStage]);
+    startExecutionState(roundDuration);
+  }, [roundDuration, startExecutionState]);
 
   const advanceStage = useCallback(
     (forceMirror = false) => {
@@ -87,7 +79,7 @@ export function useExecutionStage({
       if (isFateBox) {
         setIsFateBox(false);
         setIsMirrorStage(false);
-        setRoundNumber((round) => round + 1);
+        setRoundNumber(roundNumber + 1);
         setStageNumber(1);
         setTimeLeft(roundDuration);
         return;
@@ -107,7 +99,7 @@ export function useExecutionStage({
       if (stageNumber >= stagesThisRound) {
         setIsFateBox(true);
       } else {
-        setStageNumber((current) => current + 1);
+        setStageNumber(stageNumber + 1);
       }
       setTimeLeft(roundDuration);
     },
@@ -118,15 +110,22 @@ export function useExecutionStage({
       pointerIndex,
       orderIds,
       eliminatedSet,
+      roundNumber,
       stageNumber,
       stagesThisRound,
       roundDuration,
+      setIsFateBox,
+      setIsMirrorStage,
+      setPointerIndex,
+      setRoundNumber,
+      setStageNumber,
+      setTimeLeft,
     ],
   );
 
   const togglePause = useCallback(() => {
-    setPaused((current) => !current);
-  }, []);
+    setPaused(!paused);
+  }, [paused, setPaused]);
 
   const hydrateExecution = useCallback(
     (state: {
@@ -146,7 +145,15 @@ export function useExecutionStage({
       setPaused(state.paused);
       setIsMirrorStage(state.isMirrorStage);
     },
-    [],
+    [
+      setPointerIndex,
+      setRoundNumber,
+      setStageNumber,
+      setIsFateBox,
+      setTimeLeft,
+      setPaused,
+      setIsMirrorStage,
+    ],
   );
 
   useEffect(() => {
@@ -155,9 +162,9 @@ export function useExecutionStage({
       advanceStage();
       return;
     }
-    const timer = setTimeout(() => setTimeLeft((time) => time - 1), 1000);
+    const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
     return () => clearTimeout(timer);
-  }, [stage, paused, timeLeft, advanceStage]);
+  }, [stage, paused, timeLeft, advanceStage, setTimeLeft]);
 
   return {
     pointerIndex,

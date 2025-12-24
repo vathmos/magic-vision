@@ -14,6 +14,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@heroui/react": "^2.7.6",
     "@tabler/icons-react": "^3.36.0",
+    "zustand": "^5.0.5",
     "framer-motion": "^12.6.3",
     "lucide-react": "^0.487.0",
     "next": "15.2.8",

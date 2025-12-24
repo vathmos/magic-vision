@@ -8,8 +8,10 @@ import { ThemeSwitcher } from "@/components/ThemeSwitch";
 import { useDiscoveryOrder } from "@/hooks/useDiscoveryOrder";
 import { useExecutionStage } from "@/hooks/useExecutionStage";
 import { useRoster } from "@/hooks/useRoster";
+import { useSessionStore } from "@/store/sessionStore";
 import type { Stage } from "@/types/session";
 import { createTranslator, type Language } from "@/utils/i18n";
+import { DEFAULT_ENEMY_NAMES, ROUND_COUNT, ROUND_DURATION } from "@/utils/constants";
 import { getDiscoveryLabel, toRoman } from "@/utils/stages";
 import { Button, Card, CardBody, Input, Select, SelectItem } from "@heroui/react";
 import { IconArrowBackUp, IconBrandGithub, IconPlayerPlay, IconRefresh } from "@tabler/icons-react";
@@ -18,8 +20,6 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useState } from "react";
 
-const ROUND_COUNT = 7;
-const ROUND_DURATION = 30;
 const STORAGE_KEY = "magic-vision-session";
 const STORAGE_VERSION = 1;
 
@@ -27,8 +27,6 @@ type Enemy = {
   id: string;
   name: string;
 };
-
-const initialEnemyNames = Array.from({ length: ROUND_COUNT }, (_, index) => `P${index + 2}`);
 
 type SavedSession = {
   version: number;
@@ -67,9 +65,13 @@ export default function Home() {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
-  const [stage, setStage] = useState<Stage>("setup");
-  const [enemyNames, setEnemyNames] = useState<string[]>(initialEnemyNames);
-  const [endgameResult, setEndgameResult] = useState<"win" | "lose" | null>(null);
+  const stage = useSessionStore((state) => state.stage);
+  const setStage = useSessionStore((state) => state.setStage);
+  const enemyNames = useSessionStore((state) => state.enemyNames);
+  const setEnemyNames = useSessionStore((state) => state.setEnemyNames);
+  const updateEnemyName = useSessionStore((state) => state.updateEnemyName);
+  const endgameResult = useSessionStore((state) => state.endgameResult);
+  const setEndgameResult = useSessionStore((state) => state.setEndgameResult);
   const [hasHydrated, setHasHydrated] = useState(false);
 
   const enemies = useMemo<Enemy[]>(
@@ -107,7 +109,7 @@ export default function Home() {
     resetDiscovery,
     clearSelection,
     hydrateDiscovery,
-  } = useDiscoveryOrder({ stage, enemies, roundCount: ROUND_COUNT });
+  } = useDiscoveryOrder({ enemies, roundCount: ROUND_COUNT });
   const {
     pointerIndex,
     roundNumber,
@@ -124,7 +126,7 @@ export default function Home() {
     advanceStage,
     togglePause,
     hydrateExecution,
-  } = useExecutionStage({ stage, setStage, order, eliminatedSet, roundDuration: ROUND_DURATION });
+  } = useExecutionStage({ eliminatedSet, roundDuration: ROUND_DURATION });
 
   const canMirror = isPlayerStage && activePlayerCount % 2 === 1;
   const nextOpponentId = nextOpponentIndex !== null ? order[nextOpponentIndex] : null;
@@ -179,7 +181,7 @@ export default function Home() {
     const saved = raw ? parseSavedSession(raw) : null;
     if (saved) {
       const normalizedNames = Array.from({ length: ROUND_COUNT }, (_, index) =>
-        typeof saved.enemyNames[index] === "string" ? saved.enemyNames[index] : initialEnemyNames[index],
+        typeof saved.enemyNames[index] === "string" ? saved.enemyNames[index] : DEFAULT_ENEMY_NAMES[index],
       );
       const normalizedOrder = Array.from({ length: ROUND_COUNT }, (_, index) => {
         const value = saved.order[index];
@@ -205,7 +207,14 @@ export default function Home() {
       setEndgameResult(saved.stage === "execution" ? storedEndgame : null);
     }
     setHasHydrated(true);
-  }, [hydrateDiscovery, hydrateExecution, hydrateRoster]);
+  }, [
+    hydrateDiscovery,
+    hydrateExecution,
+    hydrateRoster,
+    setStage,
+    setEnemyNames,
+    setEndgameResult,
+  ]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -387,13 +396,7 @@ export default function Home() {
                       label={`${t("player")} ${index + 2}`}
                       labelPlacement="outside"
                       value={name}
-                      onChange={(event) =>
-                        setEnemyNames((prev) => {
-                          const updated = [...prev];
-                          updated[index] = event.target.value;
-                          return updated;
-                        })
-                      }
+                      onChange={(event) => updateEnemyName(index, event.target.value)}
                       classNames={{
                         label: "text-xs uppercase tracking-[0.18em] text-[var(--muted)]",
                         inputWrapper:

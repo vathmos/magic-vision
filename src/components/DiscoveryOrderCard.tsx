@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { Button, Card, CardBody } from "@heroui/react";
 import { IconChevronRight, IconUser } from "@tabler/icons-react";
-import type { ReactNode, Dispatch, SetStateAction } from "react";
+import type { ReactNode } from "react";
 import type { DragData } from "@/types/drag";
 
 type Enemy = {
@@ -151,7 +151,7 @@ type DiscoveryOrderCardProps = {
   order: (string | null)[];
   enemyMap: Map<string, Enemy>;
   selectedEnemyId: string | null;
-  setSelectedEnemyId: Dispatch<SetStateAction<string | null>>;
+  setSelectedEnemyId: (value: string | null) => void;
   availableEnemies: Enemy[];
   eliminatedSet: Set<string>;
   activeDragPlayerId: string | null;
@@ -247,7 +247,9 @@ export function DiscoveryOrderCard({
                     eliminated={eliminatedSet.has(enemy.id)}
                     dragData={{ type: "pool", playerId: enemy.id }}
                     statusLabel={eliminatedSet.has(enemy.id) ? t("eliminated") : t("ready")}
-                    onClick={() => setSelectedEnemyId((current) => (current === enemy.id ? null : enemy.id))}
+                    onClick={() =>
+                      setSelectedEnemyId(selectedEnemyId === enemy.id ? null : enemy.id)
+                    }
                   />
                 ))}
               </PoolDropZone>

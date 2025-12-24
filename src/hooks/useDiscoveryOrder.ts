@@ -7,9 +7,9 @@ import {
   type PointerSensorOptions,
   type SensorDescriptor,
 } from "@dnd-kit/core";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import type { DragData } from "@/types/drag";
-import type { Stage } from "@/types/session";
+import { useSessionStore } from "@/store/sessionStore";
 
 type Enemy = {
   id: string;
@@ -17,15 +17,20 @@ type Enemy = {
 };
 
 type UseDiscoveryOrderParams = {
-  stage: Stage;
   enemies: Enemy[];
   roundCount: number;
 };
 
-export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOrderParams) {
-  const [order, setOrder] = useState<(string | null)[]>(Array(roundCount).fill(null));
-  const [selectedEnemyId, setSelectedEnemyId] = useState<string | null>(null);
-  const [activeDragPlayerId, setActiveDragPlayerId] = useState<string | null>(null);
+export function useDiscoveryOrder({ enemies, roundCount }: UseDiscoveryOrderParams) {
+  const stage = useSessionStore((state) => state.stage);
+  const order = useSessionStore((state) => state.order);
+  const selectedEnemyId = useSessionStore((state) => state.selectedEnemyId);
+  const activeDragPlayerId = useSessionStore((state) => state.activeDragPlayerId);
+  const setSelectedEnemyId = useSessionStore((state) => state.setSelectedEnemyId);
+  const setActiveDragPlayerId = useSessionStore((state) => state.setActiveDragPlayerId);
+  const setOrder = useSessionStore((state) => state.setOrder);
+  const updateOrder = useSessionStore((state) => state.updateOrder);
+  const resetDiscovery = useSessionStore((state) => state.resetDiscovery);
 
   const assignedIds = useMemo(
     () => new Set(order.filter((entry): entry is string => Boolean(entry))),
@@ -40,7 +45,7 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
   const placePlayerInSlot = useCallback(
     (playerId: string, targetIndex: number) => {
       if (stage !== "discovery") return;
-      setOrder((prev) => {
+      updateOrder((prev) => {
         const next = [...prev];
         const existingIndex = next.findIndex((id) => id === playerId);
         if (existingIndex === targetIndex) {
@@ -55,13 +60,13 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
       });
       setSelectedEnemyId(null);
     },
-    [stage],
+    [stage, updateOrder, setSelectedEnemyId],
   );
 
   const removePlayerFromSlot = useCallback(
     (slotIndex: number) => {
       if (stage !== "discovery") return;
-      setOrder((prev) => {
+      updateOrder((prev) => {
         if (!prev[slotIndex]) {
           return prev;
         }
@@ -71,7 +76,7 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
       });
       setSelectedEnemyId(null);
     },
-    [stage],
+    [stage, updateOrder, setSelectedEnemyId],
   );
 
   const handleDragEnd = useCallback(
@@ -79,9 +84,9 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
       if (stage === "discovery" && typeof event.over?.id === "string") {
         const data = event.active.data.current as DragData | undefined;
         if (event.over.id === "pool-drop" && data?.type === "slot") {
-          removePlayerFromSlot(data.index);
-          setActiveDragPlayerId(null);
-          return;
+        removePlayerFromSlot(data.index);
+        setActiveDragPlayerId(null);
+        return;
         }
         const match = event.over.id.match(/^round-(\d+)$/);
         if (match && data?.playerId) {
@@ -91,7 +96,7 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
       }
       setActiveDragPlayerId(null);
     },
-    [stage, placePlayerInSlot, removePlayerFromSlot],
+    [stage, placePlayerInSlot, removePlayerFromSlot, setActiveDragPlayerId],
   );
 
   const handleDragStart = useCallback(
@@ -102,12 +107,12 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
         setActiveDragPlayerId(data.playerId);
       }
     },
-    [stage],
+    [stage, setActiveDragPlayerId],
   );
 
   const handleDragCancel = useCallback(() => {
     setActiveDragPlayerId(null);
-  }, []);
+  }, [setActiveDragPlayerId]);
 
   const sensors: SensorDescriptor<PointerSensorOptions>[] = useSensors(
     useSensor(PointerSensor, {
@@ -115,15 +120,13 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
     }),
   );
 
-  const resetDiscovery = useCallback(() => {
-    setOrder(Array(roundCount).fill(null));
-    setSelectedEnemyId(null);
-    setActiveDragPlayerId(null);
-  }, [roundCount]);
+  const resetDiscoveryState = useCallback(() => {
+    resetDiscovery(roundCount);
+  }, [resetDiscovery, roundCount]);
 
   const clearSelection = useCallback(() => {
     setSelectedEnemyId(null);
-  }, []);
+  }, [setSelectedEnemyId]);
 
   const hydrateDiscovery = useCallback(
     (nextOrder: (string | null)[]) => {
@@ -131,7 +134,7 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
       setSelectedEnemyId(null);
       setActiveDragPlayerId(null);
     },
-    [],
+    [setOrder, setSelectedEnemyId, setActiveDragPlayerId],
   );
 
   return {
@@ -146,7 +149,7 @@ export function useDiscoveryOrder({ stage, enemies, roundCount }: UseDiscoveryOr
     handleDragStart,
     handleDragEnd,
     handleDragCancel,
-    resetDiscovery,
+    resetDiscovery: resetDiscoveryState,
     clearSelection,
     hydrateDiscovery,
   };
